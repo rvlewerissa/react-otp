@@ -2,8 +2,9 @@
   "name": "react-otp",
   "version": "0.0.1",
   "description": "Mobile verification input React component",
-  "main": "build/index.js",
+  "main": "build/main.js",
   "scripts": {
+    "build-watch": "webpack --watch --config webpack.config.js",
     "build": "webpack --config webpack.config.js",
     "typecheck": "flow",
     "lint": "eslint . --max-warnings 0",

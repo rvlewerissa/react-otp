@@ -16,81 +16,138 @@ const DEFAULT_MAX_PIN_LENGTH = 4;
 const DEFAULT_KEYBOARD_TYPE = 'numeric';
 
 type Props = {
-  value: string,
+  autofocus?: boolean,
+  autoClear?: boolean,
   backspaceOnly?: boolean,
   onChangeText: string => void,
   maxLength?: number,
   keyboardType?: string,
   containerStyle?: StyleSheet,
   textStyle?: StyleSheet,
+  onInputFinish?: (code: string) => void,
+  onSuccess?: () => void,
+  onFail?: () => void,
 };
 
-export default class InputOTP extends Component<Props> {
+type State = {
+  code: string,
+};
+
+export default class InputOTP extends Component<Props, State> {
   _textInput: React$Node;
 
   constructor() {
     super(...arguments);
     autobind(this);
+    this.state = {
+      code: '',
+    };
+  }
+
+  componentDidMount() {
+    this._textInput && this.props.autofocus && this._focus();
   }
 
   render() {
-    let {value, maxLength, keyboardType} = this.props;
-    let verificationCode = transformStringToArray(value, maxLength);
+    let {code} = this.state;
+    let {
+      autofocus,
+      maxLength,
+      keyboardType,
+      onInputFinish,
+      autoClear,
+      ...otherProps
+    } = this.props;
+    let verificationCode = transformStringToArray(code, maxLength);
     return (
       <View style={styles.root}>
         <TextInput
-          autoFocus
+          autoFocus={autofocus}
           keyboardType={keyboardType || DEFAULT_KEYBOARD_TYPE}
           maxLength={maxLength || DEFAULT_MAX_PIN_LENGTH}
-          value={value}
+          value={code}
           style={styles.textField}
           caretHidden={true}
+          onChangeText={this._onChangeText}
           ref={node => {
             this._textInput = node;
           }}
-          onChangeText={this._onChangeText}
+          {...otherProps}
         />
         <View style={styles.container}>
-          {verificationCode.map((code, index) =>
-            this._renderEachCode(code, index),
-          )}
+          {verificationCode.map((code, i) => this._renderEachCode(code, i))}
         </View>
       </View>
     );
   }
 
-  _renderEachCode(code: string, i: number) {
-    let {containerStyle} = this.props;
+  _renderEachCode(code: string, index: number) {
+    let {containerStyle, textStyle} = this.props;
     return (
-      <TouchableOpacity key={i} onPress={() => this._onCodeWrapperPress(i)}>
-        <View style={containerStyle || styles.eachCodeWrapper}>
-          <Text style={styles.text}>{code}</Text>
+      <TouchableOpacity
+        key={index}
+        onPress={() => this._onCodeWrapperPress(index)}
+      >
+        <View style={[styles.eachCodeWrapper, containerStyle]}>
+          <Text style={[styles.text, textStyle]}>{code}</Text>
         </View>
       </TouchableOpacity>
     );
   }
 
   _onCodeWrapperPress(index: number) {
-    let {value, backspaceOnly, onChangeText} = this.props;
-    !backspaceOnly && onChangeText(trimString(value, index));
+    let {backspaceOnly} = this.props;
+    let {code} = this.state;
+    !backspaceOnly && this._onChangeText(trimString(code, index));
     this._focus();
   }
 
-  _onChangeText(verificationCode: string) {
-    let {onChangeText, maxLength} = this.props;
-    onChangeText(trimString(verificationCode, maxLength));
+  _onChangeText(code: string) {
+    let {maxLength} = this.props;
+    let trimmedCode = trimString(code, maxLength);
+    this._onInputEnd(code, trimmedCode);
+    this.setState({
+      code: trimmedCode,
+    });
+  }
+
+  _onInputEnd(code: string, trimmedCode: string) {
+    let {onInputFinish, onSuccess, onFail, autoClear} = this.props;
+    if (code.length === 4) {
+      let otpHandler = onInputFinish && onInputFinish(trimmedCode);
+      if (otpHandler && otpHandler.then) {
+        otpHandler
+          .then(() => {
+            if (this.state.code === trimmedCode) {
+              onSuccess && onSuccess();
+              autoClear && this.setState({code: ''});
+            }
+          })
+          .catch(onFail);
+      }
+    }
   }
 
   _focus() {
     // $FlowFixMe
     this._textInput && this._textInput.focus();
   }
+
+  getVerificationCode() {
+    return this.state.code;
+  }
+
+  resetVerificationCode(code: string) {
+    this.setState({
+      code,
+    });
+  }
 }
 
 let styles = StyleSheet.create({
   root: {
     position: 'relative',
-    zIndex: -1,
+    zIndex: 1,
   },
   container: {
     flexDirection: 'row',
@@ -123,6 +180,5 @@ let styles = StyleSheet.create({
     width: '100%',
     opacity: 0,
     letterSpacing: 25,
-    zIndex: 0,
   },
 });

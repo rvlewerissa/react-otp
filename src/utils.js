@@ -3,7 +3,10 @@
 const DEFAULT_MAX_LENGTH = 4;
 
 export function trimString(string: string, maxLength: ?number) {
-  return string.slice(0, maxLength || DEFAULT_MAX_LENGTH);
+  if (maxLength == null) {
+    maxLength = DEFAULT_MAX_LENGTH;
+  }
+  return string.slice(0, maxLength);
 }
 
 // transforms and add padding (empty string) accordingly
